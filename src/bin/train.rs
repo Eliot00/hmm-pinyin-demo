@@ -44,12 +44,15 @@ fn count_init(db: &Database, seqs: &Vec<String>) {
         }
 
         let first_char = seq.chars().next().unwrap().to_string();
+        println!("first_char: {}", first_char);
         if let Some(value) = temp_table.get_mut(&first_char) {
             *value = value.to_owned() + 1;
         } else {
             temp_table.insert(first_char, 1);
         }
     }
+
+    println!("init map: {:?}", temp_table);
 
     let write_txn = db.begin_write().unwrap();
     {
@@ -124,8 +127,8 @@ fn count_emission(db: &Database, seqs: &Vec<String>) {
         }
 
         let pinyin = seq.as_str().to_pinyin();
-        let zip_iter = seq.chars().zip(pinyin);
-        for (word, py) in zip_iter {
+        let zip_iter = pinyin.zip(seq.chars());
+        for (py, word) in zip_iter {
             if temp.get(word.to_string().as_str()).is_none() {
                 temp.insert(word.to_string(), HashMap::new());
             }
@@ -160,11 +163,12 @@ fn count_pinyin_states(db: &Database) {
         let mut pinyin_states_table = write_txn.open_table(PINYIN_STATES).unwrap();
         for (key, _) in emission_table.iter().unwrap() {
             let (word, py) = key.value().to_owned();
-            let words = pinyin_states_table
+            let mut words = pinyin_states_table
                 .get(py)
                 .unwrap()
                 .map(|x| x.value().to_string())
-                .unwrap_or(String::from(word));
+                .unwrap_or("".to_string());
+            words.push_str(word);
             pinyin_states_table.insert(py, words.as_str()).unwrap();
         }
     }
